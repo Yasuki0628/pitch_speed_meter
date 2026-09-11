@@ -1,0 +1,925 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0E1626"><link rel="manifest" href="manifest.webmanifest"><title>球速測定PWA</title><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="favicon.png"></head><body><style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Barlow+Condensed:wght@400;500;600;700&display=swap');
+
+.psm-root {
+  --night: #0E1626;
+  --turf: #16302A;
+  --turf-2: #1E4136;
+  --line: #3A6656;
+  --clay: #B5651D;
+  --clay-light: #D98A3D;
+  --chalk: #F4F0E4;
+  --chalk-dim: #B9C4C0;
+  --amber: #FFB627;
+  --amber-dim: rgba(255, 182, 39, 0.18);
+  --danger: #E4572E;
+  --ok: #6FCF97;
+  font-family: 'Barlow Condensed', sans-serif;
+  background: var(--night);
+  color: var(--chalk);
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 18px 16px 28px;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+.psm-root * { box-sizing: border-box; }
+
+.psm-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.psm-title {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  color: var(--chalk);
+  margin: 0;
+}
+.psm-subtitle { font-size: 15px; color: var(--chalk-dim); margin: 2px 0 0; }
+
+.psm-mode-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.psm-mode-tab {
+  flex: 1; text-align: center; padding: 9px 6px;
+  border: 1px solid var(--line); border-radius: 5px;
+  background: var(--turf); color: var(--chalk-dim);
+  font-size: 16px; cursor: pointer;
+}
+.psm-mode-tab.active { background: var(--amber-dim); border-color: var(--amber); color: var(--amber); }
+
+.psm-camera-panel {
+  position: relative; width: 100%; aspect-ratio: 4 / 3;
+  background: #060B12; border: 1px solid var(--line); border-radius: 6px;
+  overflow: hidden; margin-bottom: 10px;
+}
+.psm-camera-panel video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.psm-camera-off {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; padding: 20px; text-align: center;
+}
+.psm-camera-off p { color: var(--chalk-dim); font-size: 15px; margin: 0; line-height: 1.4; }
+.psm-cam-btn {
+  background: var(--turf-2); border: 1px solid var(--line); color: var(--chalk);
+  font-family: 'Barlow Condensed', sans-serif; font-size: 15px;
+  padding: 8px 18px; border-radius: 5px; cursor: pointer;
+}
+.psm-cam-btn:hover { border-color: var(--amber); }
+.psm-crosshair { position: absolute; inset: 0; pointer-events: none; }
+.psm-camera-hint {
+  position: absolute; top: 8px; left: 8px; right: 8px;
+  font-size: 13px; color: var(--amber); background: rgba(6,11,18,0.55);
+  padding: 4px 8px; border-radius: 4px; text-align: center;
+}
+.psm-rec-indicator {
+  position: absolute; bottom: 8px; left: 8px; right: 8px; display: none;
+  align-items: center; justify-content: center; gap: 6px; font-size: 14px;
+  color: var(--chalk); background: rgba(6,11,18,0.6); padding: 4px 8px; border-radius: 4px;
+}
+.psm-rec-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--danger); animation: psmDotPulse 1s infinite; }
+@keyframes psmDotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.psm-calib-marker {
+  position: absolute; width: 22px; height: 22px; margin-left: -11px; margin-top: -11px;
+  border-radius: 50%; border: 2px solid var(--chalk); display: none;
+  align-items: center; justify-content: center; font-size: 11px; color: var(--night); font-weight: 700;
+}
+.psm-calib-marker.start { background: var(--ok); }
+.psm-calib-marker.end { background: var(--amber); }
+.psm-calib-line {
+  position: absolute; height: 2px; background: rgba(244,240,228,0.5);
+  transform-origin: 0 0; display: none;
+}
+.psm-calib-prompt {
+  position: absolute; top: 8px; left: 8px; right: 8px;
+  font-size: 14px; color: var(--night); background: var(--amber);
+  padding: 6px 8px; border-radius: 4px; text-align: center; display: none; font-weight: 600;
+}
+
+.psm-board {
+  background: #060B12; border: 1px solid var(--line); border-radius: 6px;
+  padding: 16px 14px; margin-bottom: 14px; text-align: center;
+}
+.psm-board-label { font-size: 14px; color: var(--chalk-dim); margin: 0 0 2px; }
+.psm-board-main {
+  font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 52px; line-height: 1.1;
+  color: var(--amber); text-shadow: 0 0 14px var(--amber-dim); letter-spacing: 1px;
+}
+.psm-board-unit { font-family: 'Orbitron', sans-serif; font-size: 18px; color: var(--amber); margin-left: 6px; }
+.psm-board-sub { font-size: 15px; color: var(--chalk-dim); margin-top: 4px; }
+.psm-board-status { font-size: 16px; color: var(--clay-light); margin-top: 6px; min-height: 20px; }
+
+.psm-settings { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+.psm-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid var(--line); gap: 10px;
+}
+.psm-row:last-child { border-bottom: none; }
+.psm-row label { font-size: 16px; color: var(--chalk-dim); flex-shrink: 0; }
+.psm-row select, .psm-row input[type="number"] {
+  background: var(--turf); border: 1px solid var(--line); color: var(--chalk);
+  font-family: 'Barlow Condensed', sans-serif; font-size: 16px; padding: 6px 8px;
+  border-radius: 4px; text-align: right; width: 150px;
+}
+.psm-row.psm-hidden { display: none; }
+.psm-row-note { font-size: 12px; color: var(--chalk-dim); padding: 0 12px 10px; margin-top: -6px; display: none; }
+.psm-row-note.show { display: block; }
+.psm-presets { display: flex; gap: 6px; padding: 0 12px 10px; flex-wrap: wrap; }
+.psm-preset-chip {
+  background: var(--turf); border: 1px solid var(--line); color: var(--chalk-dim);
+  font-size: 13px; padding: 4px 10px; border-radius: 20px; cursor: pointer;
+}
+.psm-preset-chip.active { background: var(--amber-dim); border-color: var(--amber); color: var(--amber); }
+.psm-calib-row { display: none; flex-direction: column; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.psm-calib-row.show { display: flex; }
+.psm-calib-btn {
+  background: var(--turf-2); border: 1px solid var(--line); color: var(--chalk);
+  font-family: 'Barlow Condensed', sans-serif; font-size: 15px; padding: 7px 14px;
+  border-radius: 5px; cursor: pointer; align-self: flex-start;
+}
+.psm-calib-status { font-size: 14px; color: var(--chalk-dim); }
+.psm-calib-status.ok { color: var(--ok); }
+
+.psm-guide-box {
+  border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
+  margin-bottom: 16px; font-size: 14px; color: var(--chalk-dim); line-height: 1.55; display: none;
+}
+.psm-guide-box.show { display: block; }
+.psm-guide-box strong { color: var(--amber); font-weight: 600; }
+
+.psm-action-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+.psm-main-btn {
+  width: 150px; height: 150px; border-radius: 50%; border: 3px solid var(--clay-light);
+  background: var(--clay); color: var(--chalk); font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s ease;
+  box-shadow: 0 0 0 6px rgba(181,101,29,0.12); padding: 8px;
+}
+.psm-main-btn:active { transform: scale(0.96); }
+.psm-main-btn:disabled { opacity: 0.6; cursor: default; }
+.psm-main-btn.running {
+  background: var(--danger); border-color: #FF8A65;
+  box-shadow: 0 0 0 6px rgba(228,87,46,0.18); animation: psmPulse 1s infinite;
+}
+@keyframes psmPulse {
+  0%, 100% { box-shadow: 0 0 0 6px rgba(228,87,46,0.18); }
+  50% { box-shadow: 0 0 0 12px rgba(228,87,46,0.08); }
+}
+.psm-cancel-link {
+  margin-top: 10px; background: none; border: none; color: var(--chalk-dim);
+  font-size: 15px; text-decoration: underline; cursor: pointer;
+}
+.psm-error-msg { color: var(--danger); font-size: 14px; margin-top: 8px; text-align: center; min-height: 18px; }
+
+.psm-history-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.psm-history-head h2 { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 19px; margin: 0; color: var(--chalk); }
+.psm-clear-btn { background: none; border: none; color: var(--chalk-dim); font-size: 14px; text-decoration: underline; cursor: pointer; }
+.psm-history-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.psm-history-empty { color: var(--chalk-dim); font-size: 15px; padding: 14px; text-align: center; border: 1px dashed var(--line); border-radius: 6px; }
+.psm-history-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--turf); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px;
+}
+.psm-hi-left { font-size: 14px; color: var(--chalk-dim); line-height: 1.5; }
+.psm-hi-left .psm-hi-time { color: var(--chalk); }
+.psm-hi-left .psm-hi-mode { color: var(--amber); font-size: 12px; }
+.psm-hi-speed { font-family: 'Orbitron', sans-serif; font-size: 18px; color: var(--amber); margin: 0 10px; white-space: nowrap; }
+.psm-hi-del { background: none; border: none; color: var(--chalk-dim); font-size: 18px; cursor: pointer; padding: 0 4px; }
+.psm-hi-del:hover { color: var(--danger); }
+
+.psm-footnote { font-size: 13px; color: var(--chalk-dim); line-height: 1.5; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+</style>
+
+<div class="psm-root">
+  <div class="psm-header">
+    <div>
+      <p class="psm-title">球速測定</p>
+      <p class="psm-subtitle">カメラが自動でボールを認識して計測</p>
+    </div>
+  </div>
+
+  <div class="psm-mode-tabs">
+    <div class="psm-mode-tab active" id="psmTabAuto">自動（カメラ認識）</div>
+    <div class="psm-mode-tab" id="psmTabManual">手動（タップ）</div>
+  </div>
+
+  <div class="psm-camera-panel" id="psmCameraPanel">
+    <div class="psm-camera-off" id="psmCameraOff">
+      <p>自動認識にはカメラが必要です。起動すると、映像を見ながら構えられます。</p>
+      <button class="psm-cam-btn" id="psmCamBtn">カメラを起動</button>
+    </div>
+    <video id="psmVideo" autoplay playsinline muted style="display:none;"></video>
+    <div class="psm-crosshair" id="psmCrosshair" style="display:none;">
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(255,182,39,0.5)" stroke-width="0.3" vector-effect="non-scaling-stroke"/>
+        <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(255,182,39,0.5)" stroke-width="0.3" vector-effect="non-scaling-stroke"/>
+        <circle cx="50" cy="50" r="6" fill="none" stroke="rgba(255,182,39,0.6)" stroke-width="0.4" vector-effect="non-scaling-stroke"/>
+      </svg>
+    </div>
+    <div class="psm-camera-hint" id="psmCameraHint" style="display:none;"></div>
+    <div class="psm-calib-prompt" id="psmCalibPrompt"></div>
+    <div class="psm-calib-line" id="psmCalibLine"></div>
+    <div class="psm-calib-marker start" id="psmMarkerStart">投</div>
+    <div class="psm-calib-marker end" id="psmMarkerEnd">捕</div>
+    <div class="psm-rec-indicator" id="psmRecIndicator">
+      <div class="psm-rec-dot"></div>
+      <span id="psmRecTime">記録中 0.0秒</span>
+    </div>
+  </div>
+
+  <div class="psm-board">
+    <p class="psm-board-label">直前の球速</p>
+    <div><span class="psm-board-main" id="psmKmh">---</span><span class="psm-board-unit">km/h</span></div>
+    <p class="psm-board-sub" id="psmMph">-- mph</p>
+    <p class="psm-board-status" id="psmStatus"></p>
+  </div>
+
+  <div class="psm-settings">
+    <div class="psm-row psm-hidden" id="psmPositionRow">
+      <label for="psmPosition">計測する位置</label>
+      <select id="psmPosition">
+        <option value="catcher">捕手後方</option>
+        <option value="pitcher">投手後方</option>
+        <option value="side">投球線の横</option>
+      </select>
+    </div>
+    <div class="psm-row">
+      <label for="psmDistance">投球距離</label>
+      <input type="number" id="psmDistance" step="0.01" min="1" value="18.44">
+    </div>
+    <div class="psm-presets" id="psmPresets">
+      <span class="psm-preset-chip" data-dist="18.44">18.44m（一般）</span>
+      <span class="psm-preset-chip" data-dist="16.00">16m（中学軟式目安）</span>
+      <span class="psm-preset-chip" data-dist="14.02">14.02m（少年硬式目安）</span>
+      <span class="psm-preset-chip" data-dist="12.00">12m（低学年目安）</span>
+    </div>
+    <div class="psm-row-note show" id="psmDistanceNote">記録用の参考値です。</div>
+    <div class="psm-row">
+      <label for="psmBallType">球種</label>
+      <select id="psmBallType">
+        <option value="硬式ボール">硬式ボール</option>
+        <option value="軟式ボール">軟式ボール</option>
+        <option value="ソフトボール">ソフトボール</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="psm-row">
+      <label for="psmGrade">学年</label>
+      <select id="psmGrade">
+        <option>小学生</option>
+        <option>中学生</option>
+        <option>高校生</option>
+        <option>大学生</option>
+        <option>社会人</option>
+      </select>
+    </div>
+    <div class="psm-row">
+      <label for="psmPitcherHeight">投手の身長(cm)</label>
+      <input type="number" id="psmPitcherHeight" step="1" min="100" max="220" placeholder="任意">
+    </div>
+    <div class="psm-row">
+      <label for="psmThrowStyle">投げ方</label>
+      <select id="psmThrowStyle">
+        <option value="上手投げ">上手投げ（オーバー）</option>
+        <option value="三塁投げ" selected>三塁投げ（スリークォーター）</option>
+        <option value="横手投げ">横手投げ（サイド）</option>
+        <option value="下手投げ">下手投げ（アンダー）</option>
+      </select>
+    </div>
+    <div class="psm-row">
+      <label for="psmThrowHand">利き手</label>
+      <select id="psmThrowHand">
+        <option value="右投げ" selected>右投げ</option>
+        <option value="左投げ">左投げ</option>
+      </select>
+    </div>
+    <div class="psm-row psm-hidden" id="psmDiameterRow">
+      <label for="psmDiameter">ボール直径(cm)</label>
+      <input type="number" id="psmDiameter" step="0.1" min="3" value="7.3">
+    </div>
+    <div class="psm-row psm-hidden" id="psmFovRow">
+      <label for="psmFov">カメラ視野角(°)</label>
+      <input type="number" id="psmFov" step="1" min="40" max="100" value="68">
+    </div>
+    <div class="psm-row psm-hidden" id="psmSegRow">
+      <label for="psmSegDistance">区間の実距離(m)</label>
+      <input type="number" id="psmSegDistance" step="0.1" min="0.5" value="3">
+    </div>
+    <div class="psm-calib-row" id="psmCalibRow">
+      <button class="psm-calib-btn" id="psmCalibBtn">映像上で位置を設定</button>
+      <span class="psm-calib-status" id="psmCalibStatus">未設定：投球側と捕球側の2点を映像上でタップしてください</span>
+    </div>
+  </div>
+
+  <div class="psm-guide-box" id="psmGuideBox"></div>
+
+  <div class="psm-action-wrap">
+    <button class="psm-main-btn" id="psmMainBtn">記録開始</button>
+    <button class="psm-cancel-link" id="psmCancelBtn" style="display:none;">取り消す</button>
+    <p class="psm-error-msg" id="psmErrorMsg"></p>
+  </div>
+
+  <div class="psm-history-head">
+    <h2>記録</h2>
+    <button class="psm-clear-btn" id="psmClearBtn">全て削除</button>
+  </div>
+  <div class="psm-history-list" id="psmHistoryList">
+    <div class="psm-history-empty">まだ記録がありません</div>
+  </div>
+
+  <p class="psm-footnote" id="psmFootnote"></p>
+</div>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'pitch-gun-data';
+  const CW = 320, CH = 240;
+  const CAPTURE_INTERVAL_MS = 40;
+  const MAX_CAPTURE_MS = 4000;
+  const DIFF_THRESHOLD = 22;
+  const GLOBAL_MOTION_REJECT_RATIO = 0.40;
+  const MIN_DETECT_PX = 4;
+  const MAX_DETECT_PX_FRACTION = 0.5;
+  const DEFAULT_DIAMETERS = { '硬式ボール': 7.3, '軟式ボール': 7.2, 'ソフトボール': 9.7, 'その他': 7.0 };
+
+  const els = {};
+  ['psmTabAuto','psmTabManual','psmCameraPanel','psmCameraOff','psmCamBtn','psmVideo','psmCrosshair',
+   'psmCameraHint','psmRecIndicator','psmRecTime','psmCalibPrompt','psmCalibLine','psmMarkerStart','psmMarkerEnd',
+   'psmKmh','psmMph','psmStatus','psmPositionRow','psmPosition','psmDistance','psmPresets','psmDistanceNote',
+   'psmBallType','psmGrade','psmPitcherHeight','psmThrowStyle','psmThrowHand','psmDiameterRow','psmDiameter','psmFovRow','psmFov',
+   'psmSegRow','psmSegDistance','psmCalibRow','psmCalibBtn','psmCalibStatus','psmGuideBox',
+   'psmMainBtn','psmCancelBtn','psmErrorMsg','psmHistoryList','psmClearBtn','psmFootnote'
+  ].forEach(id => { els[id.replace('psm','').replace(/^./, c => c.toLowerCase())] = document.getElementById(id); });
+
+  let mode = 'auto';
+  let manualState = 'idle';
+  let manualStartTime = null;
+  let capturing = false;
+  let rafId = null;
+  let frames = [];
+  let recordStartTime = 0;
+  let lastCaptureTime = 0;
+  let offCanvas = null, offCtx = null;
+  let calibrating = false;
+
+  let history = [];
+  let settings = {
+    distance: 18.44, ballType: '硬式ボール', grade: '高校生',
+    diameter: 7.3, fov: 68, position: 'catcher', segDistance: 3,
+    pitcherHeight: '', throwStyle: '三塁投げ', throwHand: '右投げ',
+    calib: null,
+  };
+
+  function fmt1(n) { return Math.round(n * 10) / 10; }
+
+  async function loadData() {
+    try {
+      const res = await window.storage.get(STORAGE_KEY, false);
+      if (res && res.value) {
+        const parsed = JSON.parse(res.value);
+        if (Array.isArray(parsed.history)) history = parsed.history;
+        if (parsed.settings) settings = Object.assign(settings, parsed.settings);
+      }
+    } catch (e) { /* first run */ }
+    els.distance.value = settings.distance;
+    els.ballType.value = settings.ballType;
+    els.grade.value = settings.grade;
+    els.diameter.value = settings.diameter;
+    els.fov.value = settings.fov;
+    els.position.value = settings.position;
+    els.segDistance.value = settings.segDistance;
+    els.pitcherHeight.value = settings.pitcherHeight || '';
+    els.throwStyle.value = settings.throwStyle;
+    els.throwHand.value = settings.throwHand || '右投げ';
+    updatePresetActive();
+    updateVisibility();
+    updateGuideAndTips();
+    updateCalibStatus();
+    renderHistory();
+  }
+
+  async function saveData() {
+    try { await window.storage.set(STORAGE_KEY, JSON.stringify({ history, settings }), false); }
+    catch (e) { /* saving failed silently */ }
+  }
+
+  function updatePresetActive() {
+    const chips = els.presets.querySelectorAll('.psm-preset-chip');
+    chips.forEach(chip => {
+      chip.classList.toggle('active', Math.abs(parseFloat(chip.dataset.dist) - parseFloat(els.distance.value)) < 0.001);
+    });
+  }
+  els.presets.addEventListener('click', (e) => {
+    const chip = e.target.closest('.psm-preset-chip');
+    if (!chip) return;
+    els.distance.value = chip.dataset.dist;
+    settings.distance = parseFloat(chip.dataset.dist);
+    updatePresetActive(); saveData();
+  });
+  els.distance.addEventListener('change', () => {
+    const v = parseFloat(els.distance.value);
+    if (!isNaN(v) && v > 0) { settings.distance = v; updatePresetActive(); saveData(); }
+  });
+  els.ballType.addEventListener('change', () => {
+    settings.ballType = els.ballType.value;
+    const d = DEFAULT_DIAMETERS[els.ballType.value] || 7.0;
+    els.diameter.value = d; settings.diameter = d;
+    saveData(); updateGuideAndTips();
+  });
+  els.grade.addEventListener('change', () => { settings.grade = els.grade.value; saveData(); });
+  els.diameter.addEventListener('change', () => {
+    const v = parseFloat(els.diameter.value);
+    if (!isNaN(v) && v > 0) { settings.diameter = v; saveData(); updateGuideAndTips(); }
+  });
+  els.fov.addEventListener('change', () => {
+    const v = parseFloat(els.fov.value);
+    if (!isNaN(v) && v > 0) { settings.fov = v; saveData(); updateGuideAndTips(); }
+  });
+  els.segDistance.addEventListener('change', () => {
+    const v = parseFloat(els.segDistance.value);
+    if (!isNaN(v) && v > 0) { settings.segDistance = v; saveData(); }
+  });
+  els.pitcherHeight.addEventListener('change', () => {
+    settings.pitcherHeight = els.pitcherHeight.value; saveData(); updateGuideAndTips();
+  });
+  els.throwStyle.addEventListener('change', () => {
+    settings.throwStyle = els.throwStyle.value; saveData(); updateGuideAndTips();
+  });
+  els.throwHand.addEventListener('change', () => {
+    settings.throwHand = els.throwHand.value; saveData(); updateGuideAndTips();
+  });
+  els.position.addEventListener('change', () => {
+    settings.position = els.position.value; saveData();
+    updateVisibility(); updateGuideAndTips(); updateCalibStatus(); positionMarkers();
+  });
+
+  function setMode(newMode) {
+    if (mode === 'auto' && capturing) stopCaptureAndAnalyze(true);
+    if (mode === 'manual' && manualState === 'running') cancelManual();
+    mode = newMode;
+    els.tabAuto.classList.toggle('active', mode === 'auto');
+    els.tabManual.classList.toggle('active', mode === 'manual');
+    els.mainBtn.textContent = mode === 'auto' ? '記録開始' : '計測開始';
+    setError(''); els.status.textContent = '';
+    updateVisibility(); updateGuideAndTips();
+  }
+  els.tabAuto.addEventListener('click', () => setMode('auto'));
+  els.tabManual.addEventListener('click', () => setMode('manual'));
+
+  function updateVisibility() {
+    const isAuto = mode === 'auto';
+    const pos = els.position.value;
+    els.positionRow.classList.toggle('psm-hidden', !isAuto);
+    els.diameterRow.classList.toggle('psm-hidden', !(isAuto && pos !== 'side'));
+    els.fovRow.classList.toggle('psm-hidden', !(isAuto && pos !== 'side'));
+    els.segRow.classList.toggle('psm-hidden', !(isAuto && pos === 'side'));
+    els.calibRow.classList.toggle('show', isAuto && pos === 'side');
+    els.guideBox.classList.toggle('show', isAuto);
+    els.distanceNote.textContent = (isAuto && pos !== 'side')
+      ? '記録用の参考値です。速度計算にはボールの見かけの大きさの変化を使います。'
+      : (isAuto && pos === 'side' ? '記録用の参考値です（速度計算には下の「区間の実距離」を使います）。' : '');
+
+    if (isAuto) {
+      els.cameraHint.style.display = 'block';
+      if (pos === 'catcher') els.cameraHint.textContent = '捕手のすぐ後ろから、向かって来る球を狙う';
+      else if (pos === 'pitcher') els.cameraHint.textContent = '投手のすぐ後ろから、離れていく球を狙う';
+      else els.cameraHint.textContent = '投球コースの横から、2点の間を横切る球を狙う';
+    } else {
+      els.cameraHint.style.display = 'block';
+      els.cameraHint.textContent = 'リリースの瞬間から到達までを画面で確認';
+    }
+    positionMarkers();
+  }
+
+  function computeFocalPx(hfovDeg) { return (CW / 2) / Math.tan((hfovDeg * Math.PI / 180) / 2); }
+
+  function updateGuideAndTips() {
+    const pos = els.position.value;
+    const diameterM = (parseFloat(els.diameter.value) || settings.diameter) / 100;
+    const fovDeg = parseFloat(els.fov.value) || settings.fov;
+    const focalPx = computeFocalPx(fovDeg);
+    const maxDist = focalPx * diameterM / MIN_DETECT_PX;
+    const minDist = focalPx * diameterM / (CW * MAX_DETECT_PX_FRACTION);
+
+    let placementLine = '';
+    if (pos === 'catcher') {
+      placementLine = '<strong>配置目安：</strong>捕手のすぐ後ろ、1〜3m以内。頭上や横から、リリースから到達まで見える高さに構えてください。';
+    } else if (pos === 'pitcher') {
+      placementLine = '<strong>配置目安：</strong>投手のすぐ後ろ、リリースポイントから1〜3m以内に構えてください。';
+    } else {
+      placementLine = '<strong>配置目安：</strong>投球コースの真横、カメラから2〜4m程度。区間の両端（投球側・捕球側の2点）が画面に収まる位置に構えてください。';
+    }
+
+    let rangeLine = '';
+    if (pos !== 'side') {
+      rangeLine = '現在の設定では、ボールがカメラからおよそ <strong>' + minDist.toFixed(1) + 'm〜' + maxDist.toFixed(1) + 'm</strong> の区間にあるときに検出しやすくなります。この範囲に測定地点が収まるようスマホを配置してください。';
+    } else {
+      rangeLine = 'カメラからおよそ <strong>' + minDist.toFixed(1) + 'm〜' + maxDist.toFixed(1) + 'm</strong> 離れた位置をボールが通過する区間で検出しやすくなります。';
+    }
+
+    const throwStyle = els.throwStyle.value;
+    const throwHand = els.throwHand.value;
+    const height = parseFloat(els.pitcherHeight.value);
+    let tips = [];
+    if (throwStyle === '下手投げ') tips.push('下手投げはリリース位置が低いため、カメラをやや低め・水平気味に構えると全体を捉えやすくなります。');
+    else if (throwStyle === '横手投げ') tips.push('横手投げはリリースが体の横寄りになるため、クロスヘアを少し左右にずらして構えると捉えやすくなります。');
+    else if (throwStyle === '上手投げ') tips.push('上手投げはリリース位置が高いため、カメラをやや高めに構えると全体を捉えやすくなります。');
+    if (!isNaN(height) && height >= 180) tips.push('身長が高い投手はリリース位置も高くなりやすいため、カメラ位置を少し高めにすると良いでしょう。');
+    else if (!isNaN(height) && height > 0 && height <= 155) tips.push('身長が低い投手はリリース位置も低くなりやすいため、カメラ位置を少し低めにすると良いでしょう。');
+    if (pos === 'catcher' || pos === 'pitcher') {
+      if (throwHand === '右投げ') tips.push('右投げの投手は投手本人から見て体の右側からリリースされる傾向があるため、クロスヘアをその側に少しずらしておくと捉えやすくなります。');
+      else tips.push('左投げの投手は投手本人から見て体の左側からリリースされる傾向があるため、クロスヘアをその側に少しずらしておくと捉えやすくなります。');
+    } else if (pos === 'side') {
+      if (throwHand === '右投げ') tips.push('右投げの投手を横から撮る場合、一塁側（投球腕と反対側）から狙うと、腕の振りで軌道が隠れにくくなります。');
+      else tips.push('左投げの投手を横から撮る場合、三塁側（投球腕と反対側）から狙うと、腕の振りで軌道が隠れにくくなります。');
+    }
+    const tipLine = tips.length ? ('<br><strong>構え方の補足：</strong>' + tips.join(' ') + '（身長・投げ方・利き手は計算式そのものには影響せず、狙う位置の参考情報です）') : '';
+
+    els.guideBox.innerHTML = placementLine + '<br>' + rangeLine + tipLine;
+  }
+
+  function setError(msg) { els.errorMsg.textContent = msg || ''; }
+
+  // ---- Manual mode ----
+  function startManual() {
+    manualState = 'running'; manualStartTime = performance.now();
+    els.mainBtn.textContent = '到達でタップ'; els.mainBtn.classList.add('running');
+    els.cancelBtn.style.display = 'inline'; els.status.textContent = '計測中…'; setError('');
+  }
+  function cancelManual() {
+    manualState = 'idle'; manualStartTime = null;
+    els.mainBtn.textContent = '計測開始'; els.mainBtn.classList.remove('running');
+    els.cancelBtn.style.display = 'none'; els.status.textContent = '';
+  }
+  function finishManual() {
+    const elapsedSec = (performance.now() - manualStartTime) / 1000;
+    manualState = 'idle';
+    els.mainBtn.textContent = '計測開始'; els.mainBtn.classList.remove('running'); els.cancelBtn.style.display = 'none';
+    if (elapsedSec < 0.05) { setError('計測時間が短すぎます。もう一度お試しください。'); els.status.textContent = ''; return; }
+    if (elapsedSec > 5) { setError('計測時間が長すぎます。タップのタイミングを確認してください。'); els.status.textContent = ''; return; }
+    const dist = parseFloat(els.distance.value) || settings.distance;
+    const mps = dist / elapsedSec;
+    const kmh = fmt1(mps * 3.6);
+    const mph = fmt1(kmh / 1.609344);
+    showResult(kmh, mph, '経過時間 ' + elapsedSec.toFixed(2) + '秒 / 距離 ' + dist + 'm', '手動');
+  }
+
+  // ---- Camera ----
+  async function initCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      els.video.srcObject = stream;
+      els.video.style.display = 'block';
+      els.cameraOff.style.display = 'none';
+      els.crosshair.style.display = 'block';
+      offCanvas = document.createElement('canvas');
+      offCanvas.width = CW; offCanvas.height = CH;
+      offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+      updateVisibility();
+    } catch (e) {
+      els.cameraOff.querySelector('p').textContent = 'カメラを利用できませんでした。手動（タップ）モードに切り替えてください。';
+      els.camBtn.style.display = 'none';
+    }
+  }
+  els.camBtn.addEventListener('click', initCamera);
+
+  function drawVideoFrameCover(ctx, video, destW, destH) {
+    const vw = video.videoWidth || destW, vh = video.videoHeight || destH;
+    const srcAspect = vw / vh, destAspect = destW / destH;
+    let sx, sy, sw, sh;
+    if (srcAspect > destAspect) { sh = vh; sw = vh * destAspect; sy = 0; sx = (vw - sw) / 2; }
+    else { sw = vw; sh = vw / destAspect; sx = 0; sy = (vh - sh) / 2; }
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, destW, destH);
+  }
+
+  // ---- Calibration (side mode) ----
+  function positionMarkers() {
+    const calib = settings.calib;
+    const showMarkers = mode === 'auto' && els.position.value === 'side' && calib && !calibrating;
+    els.markerStart.style.display = showMarkers ? 'flex' : 'none';
+    els.markerEnd.style.display = showMarkers ? 'flex' : 'none';
+    els.calibLine.style.display = showMarkers ? 'block' : 'none';
+    if (showMarkers) {
+      const rect = els.cameraPanel.getBoundingClientRect();
+      els.markerStart.style.left = (calib.sx * 100) + '%';
+      els.markerStart.style.top = (calib.sy * 100) + '%';
+      els.markerEnd.style.left = (calib.ex * 100) + '%';
+      els.markerEnd.style.top = (calib.ey * 100) + '%';
+      const x1 = calib.sx * rect.width, y1 = calib.sy * rect.height;
+      const x2 = calib.ex * rect.width, y2 = calib.ey * rect.height;
+      const dx = x2 - x1, dy = y2 - y1;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      els.calibLine.style.width = len + 'px';
+      els.calibLine.style.left = x1 + 'px';
+      els.calibLine.style.top = y1 + 'px';
+      els.calibLine.style.transform = 'rotate(' + angle + 'deg)';
+    }
+  }
+
+  function updateCalibStatus() {
+    if (settings.calib) { els.calibStatus.textContent = '設定済み：位置を変える場合は再設定してください'; els.calibStatus.classList.add('ok'); }
+    else { els.calibStatus.textContent = '未設定：投球側と捕球側の2点を映像上でタップしてください'; els.calibStatus.classList.remove('ok'); }
+  }
+
+  let calibStep = 0, calibTemp = {};
+  els.calibBtn.addEventListener('click', () => {
+    if (!offCtx) { setError('先にカメラを起動してください。'); return; }
+    calibrating = true; calibStep = 1; calibTemp = {};
+    els.markerStart.style.display = 'none'; els.markerEnd.style.display = 'none'; els.calibLine.style.display = 'none';
+    els.calibPrompt.style.display = 'block';
+    els.calibPrompt.textContent = '① 投球側（リリース地点）をタップ';
+  });
+  els.cameraPanel.addEventListener('click', (e) => {
+    if (!calibrating) return;
+    const rect = els.cameraPanel.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width;
+    const ny = (e.clientY - rect.top) / rect.height;
+    if (calibStep === 1) {
+      calibTemp.sx = nx; calibTemp.sy = ny; calibStep = 2;
+      els.calibPrompt.textContent = '② 捕球側（到達地点）をタップ';
+    } else if (calibStep === 2) {
+      calibTemp.ex = nx; calibTemp.ey = ny;
+      settings.calib = { sx: calibTemp.sx, sy: calibTemp.sy, ex: calibTemp.ex, ey: calibTemp.ey };
+      calibrating = false; calibStep = 0;
+      els.calibPrompt.style.display = 'none';
+      saveData(); updateCalibStatus(); positionMarkers();
+    }
+  });
+
+  // ---- Auto capture ----
+  function toGray(imageData) {
+    const { data, width, height } = imageData;
+    const gray = new Uint8ClampedArray(width * height);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      gray[p] = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
+    }
+    return gray;
+  }
+
+  function captureLoop(now) {
+    if (!capturing) return;
+    if (now - lastCaptureTime >= CAPTURE_INTERVAL_MS) {
+      lastCaptureTime = now;
+      drawVideoFrameCover(offCtx, els.video, CW, CH);
+      const imgData = offCtx.getImageData(0, 0, CW, CH);
+      const gray = toGray(imgData);
+      frames.push({ t: now, gray });
+      const elapsed = (now - recordStartTime) / 1000;
+      els.recTime.textContent = '記録中 ' + elapsed.toFixed(1) + '秒';
+      if (now - recordStartTime > MAX_CAPTURE_MS) { stopCaptureAndAnalyze(false); return; }
+    }
+    rafId = requestAnimationFrame(captureLoop);
+  }
+
+  function startCapture() {
+    if (!offCtx) { setError('先にカメラを起動してください。'); return; }
+    if (els.position.value === 'side' && !settings.calib) { setError('先に「映像上で位置を設定」から2点を設定してください。'); return; }
+    frames = []; capturing = true; recordStartTime = performance.now(); lastCaptureTime = 0;
+    els.mainBtn.textContent = '停止して解析'; els.mainBtn.classList.add('running');
+    els.recIndicator.style.display = 'flex'; els.status.textContent = ''; setError('');
+    rafId = requestAnimationFrame(captureLoop);
+  }
+
+  function stopCaptureAndAnalyze(cancelled) {
+    capturing = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    els.recIndicator.style.display = 'none';
+    els.mainBtn.classList.remove('running');
+    if (cancelled) { frames = []; els.mainBtn.textContent = '記録開始'; return; }
+    els.mainBtn.disabled = true; els.mainBtn.textContent = '解析中…';
+    els.status.textContent = '映像を解析しています…少々お待ちください';
+    const capturedFrames = frames; frames = [];
+    setTimeout(() => {
+      const result = analyzeFrames(capturedFrames);
+      handleAutoResult(result);
+      els.mainBtn.disabled = false; els.mainBtn.textContent = '記録開始';
+    }, 30);
+  }
+
+  function findBlobs(mask, w, h) {
+    const visited = new Uint8Array(w * h);
+    const blobs = [];
+    for (let idx = 0; idx < w * h; idx++) {
+      if (mask[idx] && !visited[idx]) {
+        const stack = [idx]; visited[idx] = 1;
+        let minX = w, maxX = 0, minY = h, maxY = 0, count = 0;
+        while (stack.length) {
+          const p = stack.pop();
+          const x = p % w, y = (p / w) | 0;
+          count++;
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+          if (x > 0 && mask[p - 1] && !visited[p - 1]) { visited[p - 1] = 1; stack.push(p - 1); }
+          if (x < w - 1 && mask[p + 1] && !visited[p + 1]) { visited[p + 1] = 1; stack.push(p + 1); }
+          if (y > 0 && mask[p - w] && !visited[p - w]) { visited[p - w] = 1; stack.push(p - w); }
+          if (y < h - 1 && mask[p + w] && !visited[p + w]) { visited[p + w] = 1; stack.push(p + w); }
+        }
+        blobs.push({ minX, maxX, minY, maxY, count, w: (maxX - minX + 1), h: (maxY - minY + 1), cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 });
+      }
+    }
+    return blobs;
+  }
+
+  function getFrameBlobs(capturedFrames) {
+    const frameArea = CW * CH;
+    const perFrame = [];
+    for (let i = 1; i < capturedFrames.length; i++) {
+      const prev = capturedFrames[i - 1].gray, cur = capturedFrames[i].gray;
+      const mask = new Uint8Array(frameArea);
+      let motionCount = 0;
+      for (let p = 0; p < frameArea; p++) {
+        if (Math.abs(cur[p] - prev[p]) > DIFF_THRESHOLD) { mask[p] = 1; motionCount++; }
+      }
+      if (motionCount / frameArea > GLOBAL_MOTION_REJECT_RATIO || motionCount < 3) { perFrame.push({ t: capturedFrames[i].t, blobs: [] }); continue; }
+      const blobs = findBlobs(mask, CW, CH).filter(b =>
+        b.w <= CW * 0.65 && b.h <= CH * 0.65 && b.count >= 3 && b.count <= frameArea * 0.25 &&
+        (b.w / b.h) >= 0.45 && (b.w / b.h) <= 2.2
+      );
+      perFrame.push({ t: capturedFrames[i].t, blobs });
+    }
+    return perFrame;
+  }
+
+  function detectSizeBased(capturedFrames) {
+    const perFrame = getFrameBlobs(capturedFrames);
+    const detections = [];
+    let lastPos = null;
+    for (const f of perFrame) {
+      let best = null, bestScore = -Infinity;
+      for (const b of f.blobs) {
+        const fillRatio = b.count / (b.w * b.h);
+        let score = 1 - Math.abs(fillRatio - 0.72) / 0.72;
+        if (lastPos) {
+          const dx = b.cx - lastPos.cx, dy = b.cy - lastPos.cy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          score -= Math.min(dist / (CW * 0.35), 1.5);
+        } else {
+          const dxc = b.cx - CW / 2, dyc = b.cy - CH / 2;
+          score -= (Math.sqrt(dxc * dxc + dyc * dyc) / (CW / 2)) * 0.3;
+        }
+        if (score > bestScore) { bestScore = score; best = b; }
+      }
+      if (best && bestScore > 0.15) {
+        detections.push({ t: f.t, cx: best.cx, cy: best.cy, diameterPx: (best.w + best.h) / 2 });
+        lastPos = { cx: best.cx, cy: best.cy };
+      } else lastPos = null;
+    }
+    return detections;
+  }
+
+  function detectAlongLine(capturedFrames, calib) {
+    const startPx = { x: calib.sx * CW, y: calib.sy * CH };
+    const endPx = { x: calib.ex * CW, y: calib.ey * CH };
+    const lineDx = endPx.x - startPx.x, lineDy = endPx.y - startPx.y;
+    const lineLen = Math.sqrt(lineDx * lineDx + lineDy * lineDy) || 1;
+    const ux = lineDx / lineLen, uy = lineDy / lineLen;
+    const perfMax = lineLen * 0.3;
+
+    const perFrame = getFrameBlobs(capturedFrames);
+    const detections = [];
+    for (const f of perFrame) {
+      let best = null, bestScore = -Infinity;
+      for (const b of f.blobs) {
+        const relx = b.cx - startPx.x, rely = b.cy - startPx.y;
+        const proj = relx * ux + rely * uy;
+        const perp = Math.abs(relx * uy - rely * ux);
+        if (perp > perfMax) continue;
+        if (proj < -lineLen * 0.15 || proj > lineLen * 1.15) continue;
+        const fillRatio = b.count / (b.w * b.h);
+        let score = (1 - Math.abs(fillRatio - 0.72) / 0.72) - (perp / perfMax) * 0.5;
+        if (score > bestScore) { bestScore = score; best = { proj }; }
+      }
+      if (best && bestScore > -0.3) detections.push({ t: f.t, proj: best.proj });
+    }
+    return { detections, lineLen };
+  }
+
+  function linearRegression(pts) {
+    const n = pts.length;
+    let sumT = 0, sumV = 0, sumTT = 0, sumTV = 0;
+    for (const p of pts) { sumT += p.t; sumV += p.v; sumTT += p.t * p.t; sumTV += p.t * p.v; }
+    const denom = n * sumTT - sumT * sumT;
+    if (Math.abs(denom) < 1e-9) return null;
+    return (n * sumTV - sumT * sumV) / denom;
+  }
+
+  function analyzeFrames(capturedFrames) {
+    if (capturedFrames.length < 6) return { ok: false, reason: '記録時間が短すぎます。もう一度お試しください。' };
+    const pos = els.position.value;
+
+    if (pos === 'side') {
+      if (!settings.calib) return { ok: false, reason: '位置が設定されていません。' };
+      const segDist = parseFloat(els.segDistance.value) || settings.segDistance;
+      const { detections, lineLen } = detectAlongLine(capturedFrames, settings.calib);
+      if (detections.length < 4) {
+        return { ok: false, reason: 'ボールを検出できませんでした。区間の両端が画面に収まっているか、明るさや背景を確認してください。' };
+      }
+      const t0 = detections[0].t;
+      const pts = detections.map(d => ({ t: (d.t - t0) / 1000, v: (d.proj / lineLen) * segDist }));
+      if (pts[pts.length - 1].v <= pts[0].v + segDist * 0.1) {
+        return { ok: false, reason: '区間を横切る動きを検出できませんでした。ボールが2点の間を横切るように撮影してください。' };
+      }
+      const slope = linearRegression(pts);
+      if (slope === null) return { ok: false, reason: '解析結果が不安定でした。もう一度お試しください。' };
+      const kmh = fmt1(slope * 3.6);
+      const mph = fmt1(kmh / 1.609344);
+      if (kmh < 15 || kmh > 250) return { ok: false, reason: '解析結果が現実的な範囲を外れました（' + kmh + 'km/h）。もう一度撮影してみてください。' };
+      return { ok: true, kmh, mph, note: '検出フレーム数 ' + detections.length };
+    }
+
+    // catcher / pitcher: size-based
+    const detections = detectSizeBased(capturedFrames);
+    if (detections.length < 4) {
+      return { ok: false, reason: 'ボールを検出できませんでした。明るい場所で、シンプルな背景を選び、配置目安の距離に構えてください。' };
+    }
+    const diameterCm = parseFloat(els.diameter.value) || settings.diameter;
+    const hfovDeg = parseFloat(els.fov.value) || settings.fov;
+    const focalPx = computeFocalPx(hfovDeg);
+    const t0 = detections[0].t;
+    const pts = detections.map(d => ({ t: (d.t - t0) / 1000, v: (diameterCm / 100 * focalPx) / Math.max(d.diameterPx, 1) }));
+
+    let ok;
+    if (pos === 'catcher') ok = pts[0].v > pts[pts.length - 1].v * 1.05;
+    else ok = pts[pts.length - 1].v > pts[0].v * 1.05;
+    if (!ok) {
+      const dirText = pos === 'catcher' ? '近づいてくる' : '遠ざかっていく';
+      return { ok: false, reason: 'ボールが' + dirText + '動きを検出できませんでした。カメラの向きと配置目安を確認してください。' };
+    }
+    const slope = linearRegression(pts);
+    if (slope === null) return { ok: false, reason: '解析結果が不安定でした。もう一度お試しください。' };
+    const speedMps = pos === 'catcher' ? -slope : slope;
+    const kmh = fmt1(speedMps * 3.6);
+    const mph = fmt1(kmh / 1.609344);
+    if (kmh < 15 || kmh > 250) return { ok: false, reason: '解析結果が現実的な範囲を外れました（' + kmh + 'km/h）。もう一度、配置目安を確認して撮影してみてください。' };
+    return { ok: true, kmh, mph, note: '検出フレーム数 ' + detections.length };
+  }
+
+  function handleAutoResult(result) {
+    if (!result.ok) { setError(result.reason); els.status.textContent = ''; return; }
+    setError(''); showResult(result.kmh, result.mph, result.note, '自動');
+  }
+
+  function showResult(kmh, mph, statusText, modeLabel) {
+    els.kmh.textContent = Number(kmh).toFixed(1);
+    els.mph.textContent = Number(mph).toFixed(1) + ' mph';
+    els.status.textContent = statusText || '';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    history.unshift({
+      time: timeStr, grade: els.grade.value, ballType: els.ballType.value,
+      distance: parseFloat(els.distance.value) || settings.distance,
+      kmh, mph, modeLabel,
+      position: mode === 'auto' ? els.position.value : null,
+      throwStyle: els.throwStyle.value, throwHand: els.throwHand.value, pitcherHeight: els.pitcherHeight.value || null,
+    });
+    if (history.length > 50) history.pop();
+    saveData(); renderHistory();
+  }
+
+  els.mainBtn.addEventListener('click', () => {
+    if (mode === 'manual') { if (manualState === 'idle') startManual(); else finishManual(); }
+    else { if (!capturing) startCapture(); else stopCaptureAndAnalyze(false); }
+  });
+  els.cancelBtn.addEventListener('click', () => { if (mode === 'manual') cancelManual(); });
+
+  function positionLabelJa(p) {
+    return p === 'catcher' ? '捕手後方' : p === 'pitcher' ? '投手後方' : p === 'side' ? '横' : '';
+  }
+
+  function renderHistory() {
+    if (!history.length) { els.historyList.innerHTML = '<div class="psm-history-empty">まだ記録がありません</div>'; return; }
+    els.historyList.innerHTML = history.map((h, i) => {
+      const modeLabel = h.modeLabel || '手動';
+      const posLabel = h.position ? '・' + positionLabelJa(h.position) : '';
+      return '<div class="psm-history-item">' +
+        '<div class="psm-hi-left">' +
+          '<span class="psm-hi-time">' + h.time + '</span> ・ <span class="psm-hi-mode">' + modeLabel + posLabel + '</span> ・ ' + h.grade + ' ・ ' + h.ballType + ' ・ ' + h.distance + 'm' +
+        '</div>' +
+        '<div class="psm-hi-speed">' + Number(h.kmh).toFixed(1) + '<span style="font-size:12px;"> km/h</span></div>' +
+        '<button class="psm-hi-del" data-idx="' + i + '" title="削除">×</button>' +
+      '</div>';
+    }).join('');
+    els.historyList.querySelectorAll('.psm-hi-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        history.splice(idx, 1); saveData(); renderHistory();
+      });
+    });
+  }
+  els.clearBtn.addEventListener('click', () => {
+    if (!history.length) return;
+    if (confirm('記録をすべて削除しますか？')) { history = []; saveData(); renderHistory(); }
+  });
+
+  els.footnote.innerHTML = '自動モードの仕組み：捕手後方・投手後方では、カメラに近づく（または遠ざかる）ボールの見かけの大きさの変化から距離の縮まり方・広がり方を計算して速度を求めます。投球線の横では、映像上で設定した2点間の実際の距離と、ボールがその間を通過する時間から速度を求めます。いずれも単眼カメラによる簡易的な推定で、専門機器（レーダー式スピードガン等）ほどの精度はありません。投手の身長・投げ方・利き手（右投げ／左投げ）は計算式自体には影響しませんが、リリース位置や軌道が変わるため、カメラの構え方の参考にしてください。明るい場所・シンプルな背景ほど検出精度が上がります。うまく検出できない場合は「手動（タップ）」モードをご利用ください。';
+
+  window.addEventListener('resize', positionMarkers);
+  loadData();
+})();
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script></body></html>
