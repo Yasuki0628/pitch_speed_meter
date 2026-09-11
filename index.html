@@ -234,6 +234,11 @@
   <div class="psm-board">
     <p class="psm-board-label">直前の球速</p>
     <div><span class="psm-board-main" id="psmKmh">---</span><span class="psm-board-unit">km/h</span></div>
+<div class="psm-action-wrap">
+    <button class="psm-main-btn" id="psmMainBtn">記録開始</button>
+    <button class="psm-cancel-link" id="psmCancelBtn" style="display:none;">取り消す</button>
+    <p class="psm-error-msg" id="psmErrorMsg"></p>
+  </div>
     <p class="psm-board-sub" id="psmMph">-- mph</p>
     <p class="psm-board-status" id="psmStatus"></p>
   </div>
@@ -918,5 +923,4 @@
   loadData();
 })();
 </script>
-
-<style>.psm-main-btn{width:100px!important;height:100px!important;font-size:14px!important}.psm-action-top{margin:10px 0 14px}</style>
+<style>#psmMainBtn{width:90px!important;height:90px!important;font-size:14px!important;} .psm-action-wrap{position:relative!important;margin:8px auto!important;display:flex!important;flex-direction:column!important;align-items:center!important;}</style>
