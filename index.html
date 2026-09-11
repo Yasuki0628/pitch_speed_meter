@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0E1626"><link rel="manifest" href="manifest.webmanifest"><title>球速測定PWA</title><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="favicon.png"></head><body><style>
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Barlow+Condensed:wght@400;500;600;700&display=swap');
 
 .psm-root {
@@ -317,11 +317,7 @@
 
   <div class="psm-guide-box" id="psmGuideBox"></div>
 
-  <div class="psm-action-wrap">
-    <button class="psm-main-btn" id="psmMainBtn">記録開始</button>
-    <button class="psm-cancel-link" id="psmCancelBtn" style="display:none;">取り消す</button>
-    <p class="psm-error-msg" id="psmErrorMsg"></p>
-  </div>
+  
 
   <div class="psm-history-head">
     <h2>記録</h2>
@@ -922,4 +918,5 @@
   loadData();
 })();
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script></body></html>
+
+<style>.psm-main-btn{width:100px!important;height:100px!important;font-size:14px!important}.psm-action-top{margin:10px 0 14px}</style>
