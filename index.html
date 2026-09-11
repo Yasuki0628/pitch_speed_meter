@@ -8,14 +8,38 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="球速測定">
-<link rel="manifest" href="./manifest.json?v=2">
-<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=3">
-<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-180.png?v=3">
+<link rel="manifest" href="./manifest-v4.json">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192-v4.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v4.png">
 <title>球速測定</title>
 <style>
 html,body{margin:0;padding:0;min-height:100%;background:#0E1626;}
 body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
 </style>
+
+<style id="pwa-phone-zoom">
+/* Phone UI enlargement: the app remains centered but uses a larger visual scale. */
+.psm-root{
+  width: 89% !important;
+  max-width: 520px !important;
+  zoom: 1.12;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+@media (max-width: 380px){
+  .psm-root{
+    width: 88% !important;
+    zoom: 1.08;
+  }
+}
+@media (min-width: 700px){
+  .psm-root{
+    width: 520px !important;
+    zoom: 1.08;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -304,18 +328,17 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
     </div>
     <div class="psm-presets" id="psmPresets">
       <span class="psm-preset-chip" data-dist="18.44">18.44m（一般）</span>
-      <span class="psm-preset-chip" data-dist="16.00">16m（中学軟式目安）</span>
-      <span class="psm-preset-chip" data-dist="14.02">14.02m（少年硬式目安）</span>
-      <span class="psm-preset-chip" data-dist="12.00">12m（低学年目安）</span>
+      <span class="psm-preset-chip" data-dist="16.00">16m（学童軟式目安）</span>
+      <span class="psm-preset-chip" data-dist="14.00">14m（低学年目安）</span>
     </div>
     <div class="psm-row-note show" id="psmDistanceNote">記録用の参考値です。</div>
     <div class="psm-row">
       <label for="psmBallType">球種</label>
       <select id="psmBallType">
-        <option value="硬式ボール">硬式ボール</option>
-        <option value="軟式ボール">軟式ボール</option>
-        <option value="ソフトボール">ソフトボール</option>
-        <option value="その他">その他</option>
+        <option value="硬式球">硬式球</option>
+        <option value="準硬式球">準硬式球</option>
+        <option value="軟式球(J号)">軟式球(J号)</option>
+        <option value="軟式球(M号)">軟式球(M号)</option>
       </select>
     </div>
     <div class="psm-row">
@@ -336,7 +359,7 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
       <label for="psmThrowStyle">投げ方</label>
       <select id="psmThrowStyle">
         <option value="上手投げ">上手投げ（オーバー）</option>
-        <option value="三塁投げ" selected>三塁投げ（スリークォーター）</option>
+        <option value="斜め投げ" selected>斜め投げ</option>
         <option value="横手投げ">横手投げ（サイド）</option>
         <option value="下手投げ">下手投げ（アンダー）</option>
       </select>
@@ -347,10 +370,6 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
         <option value="右投げ" selected>右投げ</option>
         <option value="左投げ">左投げ</option>
       </select>
-    </div>
-    <div class="psm-row psm-hidden" id="psmDiameterRow">
-      <label for="psmDiameter">ボール直径(cm)</label>
-      <input type="number" id="psmDiameter" step="0.1" min="3" value="7.3">
     </div>
     <div class="psm-row psm-hidden" id="psmFovRow">
       <label for="psmFov">カメラ視野角(°)</label>
@@ -391,13 +410,14 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
   const GLOBAL_MOTION_REJECT_RATIO = 0.40;
   const MIN_DETECT_PX = 4;
   const MAX_DETECT_PX_FRACTION = 0.5;
-  const DEFAULT_DIAMETERS = { '硬式ボール': 7.3, '軟式ボール': 7.2, 'ソフトボール': 9.7, 'その他': 7.0 };
+  const BALL_DIAMETERS_CM = { '硬式球': 7.3, '準硬式球': 7.2, '軟式球(J号)': 7.0, '軟式球(M号)': 7.2 };
+  function getBallDiameterCm(type) { return BALL_DIAMETERS_CM[type] || 7.2; }
 
   const els = {};
   ['psmTabAuto','psmTabManual','psmCameraPanel','psmCameraOff','psmCamBtn','psmVideo','psmCrosshair',
    'psmCameraHint','psmRecIndicator','psmRecTime','psmCalibPrompt','psmCalibLine','psmMarkerStart','psmMarkerEnd',
    'psmKmh','psmMph','psmStatus','psmPositionRow','psmPosition','psmDistance','psmPresets','psmDistanceNote',
-   'psmBallType','psmGrade','psmPitcherHeight','psmThrowStyle','psmThrowHand','psmDiameterRow','psmDiameter','psmFovRow','psmFov',
+   'psmBallType','psmGrade','psmPitcherHeight','psmThrowStyle','psmThrowHand','psmFovRow','psmFov',
    'psmSegRow','psmSegDistance','psmCalibRow','psmCalibBtn','psmCalibStatus','psmGuideBox',
    'psmMainBtn','psmCancelBtn','psmErrorMsg','psmHistoryList','psmClearBtn','psmFootnote'
   ].forEach(id => { els[id.replace('psm','').replace(/^./, c => c.toLowerCase())] = document.getElementById(id); });
@@ -415,9 +435,9 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
 
   let history = [];
   let settings = {
-    distance: 18.44, ballType: '硬式ボール', grade: '高校生',
-    diameter: 7.3, fov: 68, position: 'catcher', segDistance: 3,
-    pitcherHeight: '', throwStyle: '三塁投げ', throwHand: '右投げ',
+    distance: 18.44, ballType: '硬式球', grade: '高校生',
+    fov: 68, position: 'catcher', segDistance: 3,
+    pitcherHeight: '', throwStyle: '斜め投げ', throwHand: '右投げ',
     calib: null,
   };
 
@@ -430,12 +450,15 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
         const parsed = JSON.parse(res.value);
         if (Array.isArray(parsed.history)) history = parsed.history;
         if (parsed.settings) settings = Object.assign(settings, parsed.settings);
+        const legacyBallMap = { '硬式ボール':'硬式球', '軟式ボール':'軟式球(M号)', 'ソフトボール':'軟式球(M号)', 'その他':'硬式球' };
+        if (legacyBallMap[settings.ballType]) settings.ballType = legacyBallMap[settings.ballType];
+        if (settings.distance === 14.02) settings.distance = 14.00;
+        if (settings.throwStyle === '三塁投げ') settings.throwStyle = '斜め投げ';
       }
     } catch (e) { /* first run */ }
     els.distance.value = settings.distance;
     els.ballType.value = settings.ballType;
     els.grade.value = settings.grade;
-    els.diameter.value = settings.diameter;
     els.fov.value = settings.fov;
     els.position.value = settings.position;
     els.segDistance.value = settings.segDistance;
@@ -473,15 +496,9 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
   });
   els.ballType.addEventListener('change', () => {
     settings.ballType = els.ballType.value;
-    const d = DEFAULT_DIAMETERS[els.ballType.value] || 7.0;
-    els.diameter.value = d; settings.diameter = d;
     saveData(); updateGuideAndTips();
   });
   els.grade.addEventListener('change', () => { settings.grade = els.grade.value; saveData(); });
-  els.diameter.addEventListener('change', () => {
-    const v = parseFloat(els.diameter.value);
-    if (!isNaN(v) && v > 0) { settings.diameter = v; saveData(); updateGuideAndTips(); }
-  });
   els.fov.addEventListener('change', () => {
     const v = parseFloat(els.fov.value);
     if (!isNaN(v) && v > 0) { settings.fov = v; saveData(); updateGuideAndTips(); }
@@ -521,7 +538,6 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
     const isAuto = mode === 'auto';
     const pos = els.position.value;
     els.positionRow.classList.toggle('psm-hidden', !isAuto);
-    els.diameterRow.classList.toggle('psm-hidden', !(isAuto && pos !== 'side'));
     els.fovRow.classList.toggle('psm-hidden', !(isAuto && pos !== 'side'));
     els.segRow.classList.toggle('psm-hidden', !(isAuto && pos === 'side'));
     els.calibRow.classList.toggle('show', isAuto && pos === 'side');
@@ -546,7 +562,7 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
 
   function updateGuideAndTips() {
     const pos = els.position.value;
-    const diameterM = (parseFloat(els.diameter.value) || settings.diameter) / 100;
+    const diameterM = getBallDiameterCm(els.ballType.value) / 100;
     const fovDeg = parseFloat(els.fov.value) || settings.fov;
     const focalPx = computeFocalPx(fovDeg);
     const maxDist = focalPx * diameterM / MIN_DETECT_PX;
@@ -884,7 +900,7 @@ body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
     if (detections.length < 4) {
       return { ok: false, reason: 'ボールを検出できませんでした。明るい場所で、シンプルな背景を選び、配置目安の距離に構えてください。' };
     }
-    const diameterCm = parseFloat(els.diameter.value) || settings.diameter;
+    const diameterCm = getBallDiameterCm(els.ballType.value);
     const hfovDeg = parseFloat(els.fov.value) || settings.fov;
     const focalPx = computeFocalPx(hfovDeg);
     const t0 = detections[0].t;

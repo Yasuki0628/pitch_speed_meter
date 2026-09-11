@@ -1,11 +1,15 @@
-const CACHE_NAME = 'pitch-speed-pwa-v3';
+const CACHE_NAME = 'pitch-speed-pwa-v5';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
+  './manifest-v5.json',
+  './icon-192-v5.png',
+  './icon-512-v5.png',
+  './apple-touch-icon-v5.png',
   './icon-192.png',
   './icon-512.png',
-  './apple-touch-icon-180.png'
+  './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', event => {
